@@ -1,0 +1,41 @@
+
+// Example
+// https://www.youtube.com/watch?v=KaN7Y4XxHhc
+
+#define SAMPLESIZE 50
+
+int sensorPin = A5; 
+int sensorPin1 = A4;
+int sensorValue;
+
+short sample[SAMPLESIZE];
+int sampleSum = 0;
+int sampleAvg = 0;
+short index = 0;
+
+
+// new sample's impact on sample input stats
+int calcNewStat(int n, int newValue){
+  
+  sampleSum += (- sample[n] + newValue);  // remove previous last SAMPLESIZE'th sample and add new one
+  sample[n] = newValue;                   // store new value on n'th position of the buffer
+  return n;                               // returning n, comletes the circular buffer handling
+}
+
+void setup() {
+  Serial.begin(2000000);
+  Serial.println("Signal_Instant, Running_Avg");
+}
+
+
+void loop() {
+  index++;
+  sensorValue = analogRead (sensorPin);
+  index = calcNewStat(index % SAMPLESIZE, sensorValue);
+  sampleAvg = sampleSum / SAMPLESIZE;
+
+  Serial.print(analogRead (sensorPin), DEC);
+  Serial.print(",");
+  Serial.println(sampleAvg, DEC);
+  //Serial.println(analogRead (sensorPin1), DEC);%
+}

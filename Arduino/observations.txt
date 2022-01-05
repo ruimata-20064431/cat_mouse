@@ -1,0 +1,41 @@
+Problemas iniciais com:
+  - interruptor que provocava curto-circuito, com o consequente aquecimento do conjunto de pilhas
+  - compreensão dos mecanismos de entrega de corrente elétrica entre os diferentes componentes (fluxo de corrente entre o arduino e o L298N, funcionalidade inerente aos pins 5V e VIN do Arduino e suas ligações
+
+A demonstrar/verificar
+  performance (e dependência elétrica) entre os modelos UNO e NANO
+
+Carro NANOv3
+  Pilhas carregadas (Powerowl 2800mAh
+  Arduino TAG: RMATA2112N03000
+  
+  Arranca com um impulso que o desvia ligeiramente para a esq Movimento retilíneo a +ou- 78.4% da potencia ao motor direito
+  Inicialmente a sequência de motores na ativação era (esq, dir) mas o desvio com o impulso inicial parecia ser superior. Com a sequência dos Motores invertida, o desvio parece ter amenizado a um ponto no qual em que o percurso assemelha-se a uma reta, com a exceção de um ligeiro desvio à direita no arranque.
+  
+  
+Carro NANOv3
+  Pilhas carregadas (Powerowl 2800mAh
+  Arduino TAG: RMATA2112N03000
+  
+  Arranca com um impulso que o desvia ligeiramente para a esq Movimento retilíneo a +ou- 78.4% da potencia ao motor direito
+  Inicialmente a sequência de motores na ativação era (esq, dir) mas o desvio com o impulso inicial parecia ser superior. Com a sequência dos Motores invertida, o desvio parece ter amenizado a um ponto no qual em que o percurso assemelha-se a uma reta, com a exceção de um ligeiro desvio à direita no arranque.
+
+  Video 20211224 02:10 +ou- apresenta o comportamento do carro em deslocação para a frente com os seguintes parâmetros
+
+    --factor-- time  power
+    left right   s     %
+     255  204    3    100
+     255  204    3    100
+     255  204    3    100
+
+  Estando o movimento em frente em parâmetros aceitáveis, exprimentámos o deslocamento inverso (utilizando os mesmos 
+  No mesmo víde, o carro apresenta um comportamento contrário ao movimento em frente, sendo que para os mesmos parâmtros (trocando somente a direção do movimento dos motores), o motor esq apresenta uma maior desenvoltura que o motor direito.
+  Sendo que, neste carro, os motores estão montados no mesmo sentido, levantámos a possibilidade de inverter o sentido do motor da esquerda (tentando equilibrar as performances com as notadas no motor da direita).
+
+  Video 20211224 02:37, manteve os mesmos parâmeetros, mas com o motor esq invertido (assim como os polos no controlador - resultando no mesmo movimento)
+
+    --factor--  time  power
+    left  right   s     %
+     255   204    3    100
+     255   204    3    100
+     255   204    3    100

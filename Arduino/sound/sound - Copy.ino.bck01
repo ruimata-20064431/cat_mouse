@@ -1,0 +1,84 @@
+
+// Example
+// https://www.youtube.com/watch?v=KaN7Y4XxHhc
+
+#define SAMPLE_SIZE                   100                                       // number of samples (past) are used to calculate the input characteristics
+#define SILENCE_SIZE                 1000                                       // how many samples are used to determin "silence" (background conditions) average 
+#define DETECTOR_PRECISION              2                                       // threshold from until which, signal average variations are not considered as sound
+
+// @@@ convert into vector!
+int sensorPin                     =    A5 ;                                     // first mic analog pin
+//int sensorPin                     =    D5 ;                                     // first mic analog pin
+int sensorPin1                    =    A4 ;
+int sensorValue                           ;                                     // serial value read from sensor
+
+short sample[SAMPLE_SIZE]         =   {0} ;                                     // serial values (buffer or sliding window)
+long  sampleSum                   =     0 ;                                     // 
+int   sampleAvg                   =     0 ;
+int   sampleAvgPrevious           =     0 ;
+short index                       =    -1 ;
+
+int   silenceAvg                  =     0 ;
+int   silenceVector[SILENCE_SIZE] = {0} ;
+bool  silenceDetermined   = false ;
+
+
+// determine "silence" conditions
+void determineSilenceLevels(){
+
+}
+
+// new sample's impact on sample input stats
+int calcNewStat(int n, int newValue){
+  
+  sampleSum += (- sample[n] + newValue);  // remove previous last SAMPLESIZE'th sample and add new one
+  sample[n] = newValue;                   // store new value on n'th position of the buffer
+  return n;                               // returning n, comletes the circular buffer handling
+}
+
+int signalDetect(int avg, int newAvg){
+  if (avg != newAvg){
+    Serial.println();
+  }
+}
+
+void setup() {
+  //Serial.begin(9600);
+  Serial.begin(19200);
+  Serial.println("Signal_Instant\tRunning_Avg");
+}
+
+
+void loop() {
+  //if (index < SAMPLESIZE){
+    index++;
+    determineSilenceLevels();
+    sensorValue = analogRead (sensorPin);
+    //sensorValue = digitalRead (sensorPin);
+    index = calcNewStat(index % SAMPLE_SIZE, sensorValue);
+    sampleAvgPrevious = sampleAvg;
+    
+    sampleAvg = sampleSum / SAMPLE_SIZE;
+    
+    if (abs(sampleAvg - sampleAvgPrevious) >= DETECTOR_PRECISION) {
+      Serial.print(index); Serial.print("_");
+      Serial.print(sampleAvg - sampleAvgPrevious);
+      Serial.println("sound detected. diffd");
+    }
+    
+    //Serial.print(analogRead (sensorPin), DEC);
+    //Serial.print("\t");
+    //Serial.print(index);Serial.print("_"); 
+    
+    //for (int n = 0; n < SAMPLESIZE; n++) {Serial.print(sample[n]);Serial.print("_");}
+    
+    Serial.print(sample[index]);Serial.print("\t");
+    
+    Serial.println(sampleAvg, DEC);
+    
+    //Serial.print("||");Serial.print(sampleSum);
+    
+    //Serial.println(analogRead (sensorPin1), DEC);%
+    //Serial.println();
+  //}
+}
