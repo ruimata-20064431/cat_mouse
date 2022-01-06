@@ -39,3 +39,17 @@ Carro NANOv3
      255   204    3    100
      255   204    3    100
      255   204    3    100
+
+
+##########################
+
+Após a reposição (inversão?) dos motores, verifica-se que o motor da roda direita continua a emitir potências superiores face ao motor esquerdo. No entanto, o ajuste necessário para permitir o movimento frontal sem desvios direcionais passou a ser menor. 
+
+Verificou-se que anteriormente se transmitiam valores de potência esquerdo/direito em 255/204, e após o ajuste da posição do motor, se consegue o mesmo efeito com 255/250, o que permite uma melhor aproximação ao objetivo ideal (que seria transmitir o mesmo nível de potência para ambos motores)
+
+Foram também feitas medições à tensão de entrada no motor: utilizando as 4 pilhas de suporte para alimentação do circuito do carro (cada uma de 1.2V, e ainda com muito pouca utilização), identificou-se que em repouso (carro parado), a tensão no motor é de 5.22V (ao invés dos teóricos 6V), e em movimento, de 4.82V.
+
+
+###
+
+referir testes para rotacao... e constantes magicas que foram determinadas
