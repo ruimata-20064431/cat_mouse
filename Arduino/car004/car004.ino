@@ -10,19 +10,19 @@
 
 #include <EEPROM.h>
 
-#define MOVE_FORWARD 1      //@@@ unused!                                    // forward direction
-#define MOVE_BACKWARD 2     //@@@ unused!                                    // backward direction
-#define STR_STD_SIZE 64     // normalized (not optimized) string size ##
-#define INV_TAG_SIZE 15     // inventory tag size
-#define MTR_NUM 2           // number of motors available
-#define MTR_SPEED 0         // max motor speed quantifier index
-#define MTR_DIVIDER 1       // max motor speed divider index
-#define PIN_SPEED 0         // speed control pin
-#define PIN_DIRECTION_FWD 1 // direction forward control pin
-#define PIN_DIRECTION_BKW 2 // direction backward control pin
+#define MOVE_FORWARD      1   // forward direction @@@ unused!
+#define MOVE_BACKWARD     2   // backward direction @@@ unused!
+#define STR_STD_SIZE     64   // normalized (not optimized) string size ##
+#define INV_TAG_SIZE     15   // inventory tag size
+#define MTR_NUM           2   // number of motors available
+#define MTR_SPEED         0   // max motor speed quantifier index
+#define MTR_DIVIDER       1   // max motor speed divider index
+#define PIN_SPEED         0   // speed control pin
+#define PIN_DIRECTION_FWD 1   // direction forward control pin
+#define PIN_DIRECTION_BKW 2   // direction backward control pin
 
-struct InventoryStruct
-{ // strcuture of Inventory tags
+
+struct InventoryStruct{       // structure of Inventory tags
   char owner[6];
   char yearMonth[5];
   char modelVersion[4];
@@ -30,159 +30,149 @@ struct InventoryStruct
 };
 InventoryStruct inventoryTagS = {"", "", "", ""};
 char text[STR_STD_SIZE] = ""; // only for inventoryTag memory allocation
-char *inventoryTag;           // char* is the easiest way to return a string from a function
+char* inventoryTag;           // char* is the easiest way to return a string from a function
 
-typedef struct MotorS
-{                   // DC motor management
-  uint8_t pinSpeed; // must be PWM pins for speed control
+typedef struct MotorS {       // DC motor management
+  uint8_t pinSpeed;           // must be PWM pins for speed control
   uint8_t pinFwd;
   uint8_t pinBkw;
 } MotorType;
 
-typedef struct MotorsS
-{
+typedef struct MotorsS{
   MotorType motor1;
   MotorType motor2;
 } MotorsType;
 
-MotorType motors[MTR_NUM] = {{.pinSpeed = 3, // motor[0] control pins
-                              .pinFwd = 4,
-                              .pinBkw = 5},
-                             {.pinSpeed = 9, // motor[1] control pins
-                              .pinFwd = 7,
-                              .pinBkw = 6}};
+MotorType motors[MTR_NUM] = {
+  {
+    .pinSpeed = 3, // motor[0] control pins
+    .pinFwd = 4,
+    .pinBkw = 5
+  },
+  {
+    .pinSpeed = 9, // motor[1] control pins
+    .pinFwd = 7,
+    .pinBkw = 6
+  }
+};
 
 int motorConfig[2][2][2] = {
-    // MOTOR 0 (Right)
-    {
-        // BACK movement config
-        {230, 100}, //@@@TEST                                 // motor0 (right)  {power limit, divider}
-        // FRONT movement config
-        {250, 100} // motor0 (right)  {power limit, divider}
-    },
-    // MOTOR 1 (Left)
-    {
-        // BACK movement config
-        {255, 100}, //@@@TEST                                 // motor1 (left)   {power limit, divider}
-        // FRONT movement config
-        {255, 100} // motor1 (left)   {power limit, divider}
-    }};
+  // MOTOR 0 (Right)
+  {
+      // BACK  movement config (@@@under testing)
+      {230, 100},           // motor0 (right)  {power limit, divider}
+      // FRONT movement config
+      {250, 100}            // motor0 (right)  {power limit, divider}
+  },
+  // MOTOR 1 (Left)
+  {
+      // BACK  movement config (@@@under testing)
+      {255, 100},           // motor1 (left)   {power limit, divider}
+      // FRONT movement config
+      {255, 100}            // motor1 (left)   {power limit, divider}
+  }
+};
 
 // retrieve information on inventory tag (last 15 bytes of EEPROM.
 // Input out[STR_STD_SIZE] only present for memory "allocation"
 // This topics could/should go to a lib
-char *getInventoryTag(char out[STR_STD_SIZE], boolean displayTag)
-{
-  char *inventoryTag = out;         // return String
-  int eepromSize = EEPROM.length(); // gather EEPROM size
+char* getInventoryTag(char out[STR_STD_SIZE], boolean displayTag){
+  char* inventoryTag = out;                               // return String
+  int eepromSize = EEPROM.length();                       // gather EEPROM size
 
-  EEPROM.get(eepromSize - INV_TAG_SIZE, inventoryTagS); // retrieve inventory tag
-  for (int i = 0; i < INV_TAG_SIZE; i++)
-    inventoryTag[i] = inventoryTagS.owner[i]; // copy tag to output
+
+  EEPROM.get(eepromSize - INV_TAG_SIZE, inventoryTagS);   // retrieve inventory tag
+  for (int i = 0; i < INV_TAG_SIZE; i++) inventoryTag[i] = inventoryTagS.owner[i]; // copy tag to output
   return inventoryTag;
 }
 
-void moveStraight(int direction, int distance, int speed)
-{
+void moveStraight(int direction, int distance, int speed){
   // for the moment, movement takes ownership of arduino for simplicity
   int adjustedSpeed;
-  int forward = (direction == 1) ? HIGH : LOW;
+  int forward  = (direction == 1) ? HIGH : LOW;
   int backward = (direction == 1) ? LOW : HIGH;
 
   // set LED (to make movement "visible")
-  digitalWrite(13, (direction == 1) ? HIGH : LOW);
-  //Serial.println("Moving...");
+  digitalWrite(13, (direction == 1)? HIGH : LOW);
+  Serial.println("Moving...");
   // cycle through motors to handle movement specs
-  for (int m = 0; m < MTR_NUM; m++)
-  {
+  for (int m = 0; m < MTR_NUM; m++){
     adjustedSpeed = (speed / motorConfig[m][direction][MTR_DIVIDER]) * motorConfig[m][direction][MTR_SPEED]; // calc adjusted speed based on parameters
-    //Serial.print("Motor");
-    //Serial.print(m);
-    //Serial.print("  adjustedSpeed = ");
-    //Serial.println(adjustedSpeed);
-    analogWrite(motors[m].pinSpeed, adjustedSpeed); // set motor adjusted speed
-    digitalWrite(motors[m].pinFwd, forward);        // set motor's forward pin value
-    digitalWrite(motors[m].pinBkw, backward);       // set motor's bakward pin value
+    Serial.print("Motor"); Serial.print(m);
+    Serial.print("  adjustedSpeed = "); Serial.println(adjustedSpeed);
+    analogWrite(motors[m].pinSpeed, adjustedSpeed);                           // set motor adjusted speed
+    digitalWrite(motors[m].pinFwd, forward  );                                // set motor's forward pin value
+    digitalWrite(motors[m].pinBkw, backward );                                // set motor's bakward pin value
   }
 
   // "distance" is set more like a duration
-  delay(distance * 1000); // potential improvement in the future ##
-  //Serial.println("...Stopping!");
+    delay(distance * 1000);                                                     // potential improvement in the future ##
+    Serial.println("...Stopping!");
   // undo everything
-  for (int m = 0; m < MTR_NUM; m++)
-  {
-    digitalWrite(motors[m].pinSpeed, LOW);
-    digitalWrite(motors[m].pinFwd, LOW);
-    digitalWrite(motors[m].pinBkw, LOW);
+  for (int m = 0; m < MTR_NUM; m++){
+      digitalWrite(motors[m].pinSpeed , LOW   );
+      digitalWrite(motors[m].pinFwd   , LOW   );
+      digitalWrite(motors[m].pinBkw   , LOW   );
   }
 
-  blink(13, 2, 100); // movement stop visual indicator
+  blink(13, 2, 100);                                                          // movement stop visual indicator
 }
 
-// -----------
-//DISTANCE IS UNUSED!?
-void rotateCar(int direction, int distance, int speed, int angle)
-{
-  // Directions to use: (@@@TODO)
-  // 0  => LEFT   (left motor flows backwards; right motor flows forward)
-  // 1  => RIGHT  (left motor flows forward; right motor flows backwards)
+// ############################################################################################
+void rotateCar(int direction, int distance, int speed, int angle){
+  // Directions:
+  //  0 => LEFT  (left motor flows backwards; right motor flows forward)
+  //  1 => RIGHT (left motor flows forward; right motor flows backwards)
 
   // for the moment, movement takes ownership of arduino for simplicity
   int adjustedSpeed;
   int forward = (direction == 1) ? HIGH : LOW;
   int backward = (direction == 1) ? LOW : HIGH;
 
-  //previous in testing: //(1.0* angle/180)*720;
-  uint16_t duracaoTeste = 4 * angle;
+  // Previously used for calculation: (1.0* angle/180)*720 (three simple rule)
+  // However, this new method uses a single multiplication, much lighter to Arduino
+  uint16_t rotateDuration = (4 * angle);
 
+  // ###############################################
   // set LED (to make movement "visible")
   //digitalWrite(13, (direction == 1) ? HIGH : LOW);
   //Serial.println("Moving...");
+  // ###############################################
 
   // cycle through motors to handle movement specs
-  for (int m = 0; m < MTR_NUM; m++)
-  {
+  for (int m = 0; m < MTR_NUM; m++){
     adjustedSpeed = (1.0 * speed / motorConfig[m][direction][MTR_DIVIDER]) * motorConfig[m][direction][MTR_SPEED]; // calc adjusted speed based on parameters
-
-    //Serial.print("Motor");
-    //Serial.print(m);
-    //Serial.print("  adjustedSpeed = ");
-    //Serial.println(adjustedSpeed);
-
-    analogWrite(motors[m].pinSpeed, adjustedSpeed); // set motor adjusted speed
-    digitalWrite(motors[m].pinFwd, forward);        // set motor's forward pin value
-    // the next motor should be using the opposite value in 'forward'
+    
+    //Serial.print("Motor"); Serial.print(m);
+    //Serial.print("  adjustedSpeed = "); Serial.println(adjustedSpeed);
+    
+    analogWrite(motors[m].pinSpeed, adjustedSpeed);                           // set motor adjusted speed
+    digitalWrite(motors[m].pinFwd, forward  );                                // set motor's forward pin value
+    digitalWrite(motors[m].pinBkw, backward );                                // set motor's bakward pin value
+    // next motor should use opposite forward value
     forward = !forward;
-    digitalWrite(motors[m].pinBkw, backward); // set motor's bakward pin value
-    // the next motor should be using the opposite value in 'backward'
+    // next motor should use opposite backward value
     backward = !backward;
   }
 
-  // @@@ vvvv CODE IS UNCHANGED, USED AS IS FROM THE OTHER FUNCTION "moveStraight"
-  // "distance" is set more like a duration
-  // @@@... actually changed... porque agora faco delayMicrossends
-
-  //delay(distance * 1000); // potential improvement in the future ##
-  Serial.print("Rotating (ms):");
-  Serial.println(duracaoTeste);
-  delay(duracaoTeste);
-  //Serial.println("...Stopping!");
+  // "rotateDuration" will translate into the respective degrees
+  delay(rotateDuration);                                                     // potential improvement in the future ##
+  Serial.println("...Stopping!");
+  
   // undo everything
-  for (int m = 0; m < MTR_NUM; m++)
-  {
-    digitalWrite(motors[m].pinSpeed, LOW);
-    digitalWrite(motors[m].pinFwd, LOW);
-    digitalWrite(motors[m].pinBkw, LOW);
+  for (int m = 0; m < MTR_NUM; m++){
+    digitalWrite(motors[m].pinSpeed , LOW   );
+    digitalWrite(motors[m].pinFwd   , LOW   );
+    digitalWrite(motors[m].pinBkw   , LOW   );
   }
 
-  blink(13, 2, 100); // movement stop visual indicator
-}
-// ------------
+  blink(13, 2, 100);                                                          // movement stop visual indicator
 
-void blink(int led, int times, int duration)
-{
-  for (int n = 0; n < times; n++)
-  {
+}
+// ############################################################################################
+
+void blink(int led, int times, int duration){
+  for (int n = 0; n < times; n++){
     digitalWrite(led, HIGH);
     delay(duration);
     digitalWrite(led, LOW);
@@ -190,23 +180,20 @@ void blink(int led, int times, int duration)
   }
 }
 
-void setup()
-{
+void setup(){
   // initialize Serial comms (monitor, only)
   Serial.begin(19200);
   // define pins direction
-  for (int m = 0; m < MTR_NUM; m++)
-  {
-    pinMode(motors[m].pinSpeed, OUTPUT);
-    pinMode(motors[m].pinFwd, OUTPUT);
-    pinMode(motors[m].pinBkw, OUTPUT);
+  for (int m = 0; m < MTR_NUM; m++){
+    pinMode (motors[m].pinSpeed , OUTPUT);
+    pinMode (motors[m].pinFwd   , OUTPUT);
+    pinMode (motors[m].pinBkw   , OUTPUT);
   }
 
   inventoryTag = getInventoryTag(text, true);
-  //Serial.println("\n\n\n\n\n\n==============================");
-  //Serial.print("Inventory Tag: ");
-  //Serial.println(inventoryTag);
-  //Serial.print("\n\n");
+  Serial.println("\n\n\n\n\n\n==============================");
+  Serial.print("Inventory Tag: "); Serial.println(inventoryTag);
+  Serial.print("\n\n");
 
   //////////////////////////////////////////////////////////////// 80%
   /*
