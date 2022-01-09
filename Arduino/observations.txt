@@ -39,3 +39,46 @@ Carro NANOv3
      255   204    3    100
      255   204    3    100
      255   204    3    100
+
+
+########################
+Sobre o Carro 0 (TOM)
+########################
+- Apesar de apresentarem características idênticas, o acto de fazer o carro mover em frente revelou que existia um desiquilíbrio na correta distribuição de energia por ambos os motores das rodas do carro, pois existia uma tendência para o carro se desviar para a esquerda durante o movimento.
+- Para tal, de forma a permitir um movimento dianteiro relativamente correto (sem desvios direcionais), foi necessário recorrer a vários testes de distribuição de tensão entre ambos os motores (regulada pelos pinos PWM do Arduino), reduzindo/aumentando os valores nos motores para que esta situação fosse corrigida.
+- Para tentar solucionar este problema, fez-se também um reposicionamento de ambos motores, e verificou-se ainda assim que motor da roda direita continuava a emitir potências superiores face ao motor esquerdo, no entanto com menor desvio.
+- Concluiu-se assim que a melhor forma de contornar este obstáculo seria estabelecer conjuntos de valores para cada carro, e armazená-los no programa, para que em cada movimento sejam usados os valores que se traduzam no movimento mais correto possível.
+- Derivado desta situação, a rotação que este efetua em torno do seu centro também foi alvo de testes para identificar os valores de potência a fornecer aos motores, para garantir um movimento fiel aos ângulos de rotação esperados.
+
+########################
+Sobre o Carro 1 (Jerry)
+########################
+- Tal como no outro carro, também se verificou um desiquilíbrio no movimento alinhado do carro, tendo sido necessário também efetuar um conjunto de testes para encontrar os melhores valores que definam o movimento sem tomar 
+- As mesmas condições para rotação também se aplicam a este carro, pois verificou-se que os valores otimizados de rotação do Tom não se aplicavam diretamente a este carro.
+
+########################
+Notas sobre ambos carros
+########################
+- Relativamente a ambos carros, uma limitação encontrada nestes foi que toda a vez que veículo inicia marcha dianteira/traseira, a roda frontal (que os suporta e permite uma rotação em 360º) poderá afetar ligeiramente a direção inicial de qualquer movimento dos carros, derivado da rotação que esta efetua em torno do seu suporte para corrigir a sua direção posicional.
+
+### MEDICOES (?) ###
+- Foram também feitas medições à tensão de entrada no motor: utilizando as 4 pilhas de suporte para alimentação do circuito do carro (cada uma de 1.2V, com cerca de 80% de capacidade), identificou-se que em repouso (carro parado), a tensão no motor é de 5.22V (ao invés dos teóricos 6V), e em movimento, de 4.82V.
+- Já com a capacidade total das mesmas pilhas, observa-se uma tensão no motor de 5.6V, ao contrário dos anteriores 5.22V.
+- Foi também testada a alimentação com uma pilha de 9V.
+
+########################
+Código
+########################
+- 
+- 
+
+########################
+(?)
+########################
+- Notámos, como já se suspeitava, que a carga das pilhas tem impacto no movimento do carro:
+no momento em que se estabeleceram os níveis para rotação do Tom,
+as pilhas estavam utilizadas em cerca de 15% da sua capacidade total.
+No dia seguinte, após ter recarregado as mesmas, os valores calculados já não coincidaram, 
+onde vimos que o carro se passou a mover em excesso face ao previamente calculado.
+- Então, entendemos que os valores de potências para os movimentos dos carros deveriam ser registados em ambiente mais controlado, para serem utilizados de forma fidedigna.
+(?) - Por este motivo, adquirimos um conjunto adicional de pilhas, para que ambos carros funcionem dentro da forma esperada em demonstração do projeto.
