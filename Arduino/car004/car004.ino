@@ -5,88 +5,53 @@
 // potentially,  in the future,  if all the rest suffices, and energy
 // remains, we may be consider the possibility of  adjusting it to be
 // more "aware"... or less unaware... ;)
-
+//
 // motors sequence changed: now 0: right and 1: left
 
+// #### INCLUDES ###############
 #include <EEPROM.h>
+#include "car_info.h"
+#include "main_jerry.h"
+#include "main_tom.h"
 
-#define MOVE_FORWARD      1   // forward direction @@@ unused!
-#define MOVE_BACKWARD     2   // backward direction @@@ unused!
-#define STR_STD_SIZE     64   // normalized (not optimized) string size ##
-#define INV_TAG_SIZE     15   // inventory tag size
-#define MTR_NUM           2   // number of motors available
-#define MTR_SPEED         0   // max motor speed quantifier index
-#define MTR_DIVIDER       1   // max motor speed divider index
-#define PIN_SPEED         0   // speed control pin
-#define PIN_DIRECTION_FWD 1   // direction forward control pin
-#define PIN_DIRECTION_BKW 2   // direction backward control pin
-
-
-struct InventoryStruct{       // structure of Inventory tags
-  char owner[6];
-  char yearMonth[5];
-  char modelVersion[4];
-  char inventoryNum[4];
-};
-InventoryStruct inventoryTagS = {"", "", "", ""};
-char text[STR_STD_SIZE] = ""; // only for inventoryTag memory allocation
-char* inventoryTag;           // char* is the easiest way to return a string from a function
-
-typedef struct MotorS {       // DC motor management
-  uint8_t pinSpeed;           // must be PWM pins for speed control
-  uint8_t pinFwd;
-  uint8_t pinBkw;
-} MotorType;
-
-typedef struct MotorsS{
-  MotorType motor1;
-  MotorType motor2;
-} MotorsType;
-
-MotorType motors[MTR_NUM] = {
-  {
-    .pinSpeed = 3, // motor[0] control pins
-    .pinFwd = 4,
-    .pinBkw = 5
-  },
-  {
-    .pinSpeed = 9, // motor[1] control pins
-    .pinFwd = 7,
-    .pinBkw = 6
-  }
-};
-
-int motorConfig[2][2][2] = {
-  // MOTOR 0 (Right)
-  {
-      // BACK  movement config (@@@under testing)
-      {230, 100},           // motor0 (right)  {power limit, divider}
-      // FRONT movement config
-      {250, 100}            // motor0 (right)  {power limit, divider}
-  },
-  // MOTOR 1 (Left)
-  {
-      // BACK  movement config (@@@under testing)
-      {255, 100},           // motor1 (left)   {power limit, divider}
-      // FRONT movement config
-      {255, 100}            // motor1 (left)   {power limit, divider}
-  }
-};
-
-// retrieve information on inventory tag (last 15 bytes of EEPROM.
-// Input out[STR_STD_SIZE] only present for memory "allocation"
-// This topics could/should go to a lib
-char* getInventoryTag(char out[STR_STD_SIZE], boolean displayTag){
-  char* inventoryTag = out;                               // return String
-  int eepromSize = EEPROM.length();                       // gather EEPROM size
+// #### MACROS #################
+// To help separating code that each car should run
+#define TOM                    0   // the chaser
+#define JERRY                  1   // the chased
+#define LED_PIN               12   // @@@ mostly for debugging so far
+#define ULTRASND_ECHO         11   // @@@ echo pin that determines the ultrassound delay
+#define ULTRASND_PIN          10   // @@@ ultrassound transmit pin (to measure distance to objects ahead)
+#define STR_STD_SIZE          64   // normalized (not optimized) string size ##
+#define MTR_SPEED              0   // max motor speed quantifier index
+#define MTR_DIVIDER            1   // max motor speed divider index
+int carNumber;                     // digit (0/1) that indicates which car is which (allows easy access to specific car configs)
+bool gameIsOver = false;
 
 
-  EEPROM.get(eepromSize - INV_TAG_SIZE, inventoryTagS);   // retrieve inventory tag
-  for (int i = 0; i < INV_TAG_SIZE; i++) inventoryTag[i] = inventoryTagS.owner[i]; // copy tag to output
-  return inventoryTag;
+// #######################
+// #### Car functions ####
+// #######################
+float read_distance(){
+  uint32_t duration;
+  float distance_cm;
+  
+  // Clear any possible prev state
+  digitalWrite(ULTRASND_PIN, LOW);
+  delayMicroseconds(5);
+  // Send the ultrassounds then stop
+  digitalWrite(ULTRASND_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(ULTRASND_PIN, LOW);
+  // Read from Echo pin, aka result sound wave expressed in microseconds
+  duration = pulseIn(ULTRASND_ECHO, HIGH);
+  // Calculate distance (using speed of sound, divided by 2 because it goes forth & back)
+  // Adding 3% to the result, to get a bit more realistic result
+  distance_cm = (duration * 0.034 / 2) * 1.03;
+  return distance_cm;
 }
 
-void moveStraight(int direction, int distance, int speed){
+// ##### CAR MOVEMENT FUNCTIONS #####
+void move_straight(int direction, int distance, int speed){
   // for the moment, movement takes ownership of arduino for simplicity
   int adjustedSpeed;
   int forward  = (direction == 1) ? HIGH : LOW;
@@ -97,7 +62,7 @@ void moveStraight(int direction, int distance, int speed){
   Serial.println("Moving...");
   // cycle through motors to handle movement specs
   for (int m = 0; m < MTR_NUM; m++){
-    adjustedSpeed = (speed / motorConfig[m][direction][MTR_DIVIDER]) * motorConfig[m][direction][MTR_SPEED]; // calc adjusted speed based on parameters
+    adjustedSpeed = (speed / cars[carNumber][m][direction][MTR_DIVIDER]) * cars[carNumber][m][direction][MTR_SPEED]; // calc adjusted speed based on parameters
     Serial.print("Motor"); Serial.print(m);
     Serial.print("  adjustedSpeed = "); Serial.println(adjustedSpeed);
     analogWrite(motors[m].pinSpeed, adjustedSpeed);                           // set motor adjusted speed
@@ -115,33 +80,38 @@ void moveStraight(int direction, int distance, int speed){
       digitalWrite(motors[m].pinBkw   , LOW   );
   }
 
-  blink(13, 2, 100);                                                          // movement stop visual indicator
+  //blink(13, 2, 100);                                                          // movement stop visual indicator
 }
 
-// ############################################################################################
-void rotateCar(int direction, int distance, int speed, int angle){
+void rotate_car(int direction, int angle){
   // Directions:
-  //  0 => LEFT  (left motor flows backwards; right motor flows forward)
-  //  1 => RIGHT (left motor flows forward; right motor flows backwards)
+  //   0 => LEFT  (left motor flows backwards; right motor flows forward)
+  //   1 => RIGHT (left motor flows forward; right motor flows backwards)
+  int speed;
+
+  // loads specific speed information depending on the car
+  if (carNumber == TOM){
+    speed = 65;
+  } else if (carNumber == JERRY) {
+    speed = 80;
+  } else {
+    // just a protection. stops the car and lets us know in case something goes wrong
+    speed = 1;
+  }
 
   // for the moment, movement takes ownership of arduino for simplicity
   int adjustedSpeed;
   int forward = (direction == 1) ? HIGH : LOW;
   int backward = (direction == 1) ? LOW : HIGH;
-
+  
   // Previously used for calculation: (1.0* angle/180)*720 (three simple rule)
   // However, this new method uses a single multiplication, much lighter to Arduino
   uint16_t rotateDuration = (4 * angle);
-
-  // ###############################################
-  // set LED (to make movement "visible")
-  //digitalWrite(13, (direction == 1) ? HIGH : LOW);
   //Serial.println("Moving...");
-  // ###############################################
 
   // cycle through motors to handle movement specs
   for (int m = 0; m < MTR_NUM; m++){
-    adjustedSpeed = (1.0 * speed / motorConfig[m][direction][MTR_DIVIDER]) * motorConfig[m][direction][MTR_SPEED]; // calc adjusted speed based on parameters
+    adjustedSpeed = (1.0 * speed / cars[carNumber][m][direction][MTR_DIVIDER]) * cars[carNumber][m][direction][MTR_SPEED]; // calc adjusted speed based on parameters
     
     //Serial.print("Motor"); Serial.print(m);
     //Serial.print("  adjustedSpeed = "); Serial.println(adjustedSpeed);
@@ -166,10 +136,9 @@ void rotateCar(int direction, int distance, int speed, int angle){
     digitalWrite(motors[m].pinBkw   , LOW   );
   }
 
-  blink(13, 2, 100);                                                          // movement stop visual indicator
-
+  //blink(13, 2, 100);                                                          // movement stop visual indicator
 }
-// ############################################################################################
+// ####
 
 void blink(int led, int times, int duration){
   for (int n = 0; n < times; n++){
@@ -181,8 +150,9 @@ void blink(int led, int times, int duration){
 }
 
 void setup(){
-  // initialize Serial comms (monitor, only)
+  // initialize Serial comms baudrate
   Serial.begin(19200);
+  
   // define pins direction
   for (int m = 0; m < MTR_NUM; m++){
     pinMode (motors[m].pinSpeed , OUTPUT);
@@ -190,49 +160,117 @@ void setup(){
     pinMode (motors[m].pinBkw   , OUTPUT);
   }
 
-  inventoryTag = getInventoryTag(text, true);
-  Serial.println("\n\n\n\n\n\n==============================");
-  Serial.print("Inventory Tag: "); Serial.println(inventoryTag);
-  Serial.print("\n\n");
+  //inventoryTag = getInventoryTag(text, true);
+  carNumber = (EEPROM.read(EEPROM.length()-1)) - 48;           // Load car# from EEPROM (the very last byte written)
+  Serial.println("\n\n\n==============================");
+  Serial.print("Car Model No.: "); Serial.println(carNumber);
+  
+  // ## @@@ #######################
+  // Ultrassound pins configuration - change accordingly to car
+  if (carNumber == TOM) {
+    Serial.println("Hello, Tom");
+    //setup_tom();
+  } else if (carNumber == JERRY) {
+    Serial.println("Hello, Jerry");
+    //setup_jerry();
+  }
 
-  //////////////////////////////////////////////////////////////// 80%
-  /*
-    VALORES ESTABELECIDOS:
-     -    FRENTE    (direction 1): right: 250; left: 255
-     - MARCHA-ATRAS (direction 0): right: 230; left: 255
-  */
+  //@@@TODO
+  pinMode(ULTRASND_PIN, OUTPUT);
+  pinMode(ULTRASND_ECHO, INPUT);
+  pinMode(LED_PIN, OUTPUT);
 
-  /*
-  // adjusted ?% motor right
-  motorConfig[0][0][0] = 250;
-  motorConfig[1][0][0] = 255;
-  moveStraight(0, 3, 100);
-  delay(5000);
+  demoCourse();
+}
 
-  // adjusted ?% motor right
-  motorConfig[0][0][0] = 250;
-  motorConfig[1][0][0] = 255;
-  moveStraight(0, 3, 100);
-  delay(5000);
-*/
+void demoCourse() {
 
-  // adjusted ?% motor right
-  //motorConfig[0][0][0] = 230; //right
-  //motorConfig[1][0][0] = 255; //left
-
-  rotateCar(0, 3, 83, 180);
-  delay(2000);
-  rotateCar(0, 3, 83, 90);
-  delay(2000);
-  rotateCar(0, 3, 83, 45);
-  delay(2000);
-
-  // 1 IS NOT WORKING!!!
-  //rotateCar(1, 1, 100);
-  //delay(3000);
+  // **** FOR DEMONSTRATION PURPOSES **** //
+  if (carNumber == TOM) {
+    // delay para setup do carro e permitir o Jerry avançar
+    delay(1500);
+    move_straight(1, 2, 100);
+    delay(1500);
+    rotate_car(0, 90);
+    delay(1500);
+    move_straight(1, 1, 100);
+    delay(1500);
+    rotate_car(0, 90);
+    delay(1500);
+    move_straight(1, 2, 100);
+    delay(1500);
+    rotate_car(1, 360);
+     
+  } else if (carNumber == JERRY) {
+    // delay para setup do carro
+    delay(1500);
+    move_straight(1, 2, 100);
+    delay(1500);
+    rotate_car(0, 90);
+    delay(1500);
+    move_straight(1, 1, 100);
+    delay(1500);
+    rotate_car(0, 90);
+    delay(1500);
+    move_straight(1, 2, 100);
+    delay(1500);
+    rotate_car(1, 360);
+    
+  }
 }
 
 void loop()
 {
-  //delay(5000);
+  // ### TEST FUNCTIONS HERE ###
+  //delay(2500);
+  // ########################
+  // TOM   values
+  //move_straight(0, 3, 100);
+  //rotate_car(0, 70, 360);
+  //rotate_car(1, 70, 360);
+  // ########################
+  // JERRY values
+  //move_straight(0, 3, 100);
+  //rotate_car(0, 70, 360);
+  //rotate_car(1, 70, 360);
+  // ########################
+
+  /*
+  float distance_cm = read_distance();
+  Serial.println(distance_cm);
+  if (distance_cm <= 15.0) {
+    digitalWrite(LED_PIN, HIGH);
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
+  */
+  
+  /* GAME HAPPENS HERE */
+  /*if (carNumber == TOM) {
+    Serial.println("Executing TOM round...");
+    if (!gameIsOver) {
+      gameIsOver = execute_tom();
+    } else {
+      Serial.println("Game is over, Tom is stopped");
+    }
+  } else if (carNumber == JERRY) {
+    Serial.println("Executing JERRY round...");
+    execute_jerry();
+  } else {
+    // for debugging purposes
+    Serial.println("Unknown car model number!! Nothing to do.");
+  }*/
+  
 }
+
+
+/*
+  VALORES ENCONTRADOS:
+  (0) TOM   (TRANSPARENTE)
+   - FRENTE       (direction 1): right: 250; left: 255
+   - MARCHA-ATRAS (direction 0): right: 230; left: 25
+   - ROTACAO:     rotate_car(1, 70, 90);
+   
+  (1) JERRY (CASTANHO)
+   - ROTACAO:     rotate_car(1, 1, 1); 
+*/

@@ -35,7 +35,7 @@ const int   INVENTORY_TAG_SIZE  =  15 ;
                      //   0                          0
                      //   0                          2  // example for a 1024 (1Kb) EEPROM
                      //   901234   4567    8901   1234  // bytes where to stamp inventory info
-InventoryStruct stamp = {"RMATA", "2112", "U03", "000"};
+InventoryStruct stamp = {"RMATA", "2112", "N03", "001"};
 // Ownership      RMATA
 // Year/month     2112
 // Model/version  N03 (NANOv03)
